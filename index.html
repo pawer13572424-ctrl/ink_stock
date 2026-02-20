@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>インキ在庫</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", sans-serif;
+      background: #f5f5f5;
+      min-height: 100vh;
+    }
+    .header {
+      position: sticky;
+      top: 0;
+      background: #fff;
+      padding: 16px 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      z-index: 10;
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 12px;
+    }
+    h1 span { font-size: 14px; color: #888; font-weight: 400; }
+    .search {
+      width: 100%;
+      padding: 12px 16px;
+      font-size: 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      outline: none;
+    }
+    .search:focus { border-color: #2196f3; }
+    
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      background: #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .tab.active {
+      background: #2196f3;
+      color: #fff;
+    }
+    
+    .content { padding: 12px 16px 100px; }
+    
+    .category-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fff;
+      padding: 14px 16px;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      user-select: none;
+    }
+    .category-header:hover { background: #fafafa; }
+    .category-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .category-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+    .category-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: #333;
+    }
+    .category-count {
+      font-size: 13px;
+      color: #888;
+      background: #f0f0f0;
+      padding: 2px 10px;
+      border-radius: 12px;
+    }
+    .arrow {
+      font-size: 12px;
+      color: #999;
+      transition: transform 0.2s;
+    }
+    .arrow.open { transform: rotate(90deg); }
+    
+    .item-list {
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      display: none;
+    }
+    .item-list.open { display: block; }
+    
+    .item {
+      display: flex;
+      align-items: center;
+      padding: 10px 14px;
+      gap: 10px;
+      border-bottom: 1px solid #f0f0f0;
+      cursor: pointer;
+    }
+    .item:hover { background: #f9f9f9; }
+    .item:last-child { border-bottom: none; }
+    .item.selected { background: #e3f2fd; }
+    
+    .color-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+    }
+    .item-name {
+      font-size: 14px;
+      color: #333;
+    }
+    .shelf-tag {
+      font-size: 11px;
+      font-weight: 600;
+      color: #fff;
+      background: #666;
+      padding: 2px 8px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .shelf-A { background: #e53935; }
+    .shelf-B { background: #fb8c00; }
+    .shelf-C { background: #43a047; }
+    .shelf-D { background: #1e88e5; }
+    .shelf-E { background: #8e24aa; }
+    .shelf-F { background: #00897b; }
+    .shelf-G { background: #d81b60; }
+    
+    .checkbox {
+      width: 22px;
+      height: 22px;
+      border: 2px solid #ccc;
+      border-radius: 4px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: #fff;
+      background: #fff;
+    }
+    .item.selected .checkbox {
+      background: #2196f3;
+      border-color: #2196f3;
+    }
+    .item.selected .checkbox::after {
+      content: '✓';
+    }
+    
+    .empty { text-align: center; padding: 60px 20px; color: #999; }
+    
+    /* 履歴登録バー */
+    .register-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #fff;
+      padding: 12px 16px;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+      display: none;
+      z-index: 20;
+    }
+    .register-bar.show { display: block; }
+    
+    .selected-count {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    .register-form {
+      display: flex;
+      gap: 8px;
+    }
+    .register-form input {
+      flex: 1;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    .register-form input:focus {
+      outline: none;
+      border-color: #2196f3;
+    }
+    .register-btn {
+      padding: 12px 24px;
+      background: #4caf50;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .register-btn:disabled {
+      background: #ccc;
+    }
+    
+    /* 履歴表示 */
+    .history-item {
+      background: #fff;
+      padding: 12px 16px;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .history-date {
+      font-size: 12px;
+      color: #888;
+    }
+    .history-product {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+      margin: 4px 0;
+    }
+    .history-inks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .history-ink {
+      font-size: 12px;
+      background: #f0f0f0;
+      padding: 4px 10px;
+      border-radius: 12px;
+    }
+    
+    /* 設定モーダル */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: #fff;
+      padding: 24px;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 400px;
+    }
+    .modal h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+    }
+    .modal label {
+      display: block;
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 6px;
+    }
+    .modal input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+    .modal-btns {
+      display: flex;
+      gap: 8px;
+    }
+    .modal-btns button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .modal-btns .cancel { background: #e0e0e0; }
+    .modal-btns .save { background: #2196f3; color: #fff; }
+    
+    .settings-btn {
+      position: fixed;
+      bottom: 80px;
+      right: 16px;
+      width: 48px;
+      height: 48px;
+      background: #666;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      font-size: 20px;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    
+    .toast {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      display: none;
+      z-index: 200;
+    }
+    .toast.show { display: block; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>インキ在庫 <span id="count"></span></h1>
+    <input type="text" class="search" id="search" placeholder="🔍 検索... (例: DIC, 赤, C棚)">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('list')">在庫一覧</button>
+      <button class="tab" onclick="switchTab('history')">使用履歴</button>
+    </div>
+  </div>
+  
+  <div class="content" id="content"></div>
+  
+  <div class="register-bar" id="registerBar">
+    <div class="selected-count" id="selectedCount">0件選択中</div>
+    <div class="register-form">
+      <input type="text" id="productName" placeholder="製品名を入力">
+      <button class="register-btn" id="registerBtn" onclick="registerHistory()">登録</button>
+    </div>
+  </div>
+  
+  <button class="settings-btn" onclick="openSettings()">⚙</button>
+  
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+      <h2>GAS連携設定</h2>
+      <label>GAS WebアプリURL</label>
+      <input type="text" id="gasUrl" placeholder="https://script.google.com/...">
+      <div class="modal-btns">
+        <button class="cancel" onclick="closeSettings()">キャンセル</button>
+        <button class="save" onclick="saveSettings()">保存</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ============================================
+    // 設定
+    // ============================================
+    let GAS_URL = localStorage.getItem('gasUrl') || '';
+    
+    // ============================================
+    // ローカルデータ（GAS未接続時に使用）
+    // ============================================
+    const localInkData = [
+      // A棚
+      {name:"FDMC A3032/DI6漆黒",shelf:"A"},{name:"FDMC藍",shelf:"A"},{name:"CF0751",shelf:"A"},{name:"CF0568",shelf:"A"},{name:"ハンバーググレー",shelf:"A"},{name:"DIC302",shelf:"A"},{name:"DIC314",shelf:"A"},{name:"DIC287",shelf:"A"},{name:"F85",shelf:"A"},{name:"CF0790",shelf:"A"},{name:"DIC310",shelf:"A"},{name:"DIC91",shelf:"A"},{name:"FDMC紅",shelf:"A"},{name:"特オレンジ",shelf:"A"},{name:"DIC236",shelf:"A"},{name:"ラグイス色",shelf:"A"},{name:"DIC133",shelf:"A"},{name:"DIC288",shelf:"A"},{name:"DIC360",shelf:"A"},{name:"シュガーレディピンク",shelf:"A"},{name:"DIC289",shelf:"A"},{name:"DIC1",shelf:"A"},{name:"CF6013",shelf:"A"},{name:"DIC2590",shelf:"A"},{name:"DIC938",shelf:"A"},{name:"DIC782",shelf:"A"},{name:"FDカルトン3号盛",shelf:"A"},{name:"DIC2082",shelf:"A"},{name:"DIC17",shelf:"A"},{name:"FDMCシュガー淡草",shelf:"A"},{name:"舞茸ピンク",shelf:"A"},{name:"CF0055",shelf:"A"},{name:"特CF0055",shelf:"A"},{name:"DIC248",shelf:"A"},{name:"DIC2201",shelf:"A"},{name:"アピリオCGピンク",shelf:"A"},{name:"DIC32",shelf:"A"},{name:"枝豆",shelf:"A"},{name:"DIC P6",shelf:"A"},{name:"DIC34",shelf:"A"},{name:"CF0719",shelf:"A"},{name:"PDS 国D396緑",shelf:"A"},{name:"F28",shelf:"A"},{name:"F247",shelf:"A"},{name:"DIC243",shelf:"A"},{name:"DIC49",shelf:"A"},{name:"グローバルベージ",shelf:"A"},{name:"DIC66",shelf:"A"},{name:"DIC161",shelf:"A"},{name:"CF0600",shelf:"A"},{name:"DIC332",shelf:"A"},{name:"DIC164",shelf:"A"},{name:"DIC368",shelf:"A"},{name:"DIC90",shelf:"A"},{name:"甘塩グレー",shelf:"A"},{name:"DIC731",shelf:"A"},
+      // B棚
+      {name:"国内リーセージ",shelf:"B"},{name:"CR0176",shelf:"B"},{name:"DIC2186",shelf:"B"},{name:"CF0089",shelf:"B"},{name:"FDS辛塩赤",shelf:"B"},{name:"DIC26",shelf:"B"},{name:"NGP",shelf:"B"},{name:"DI6淡草",shelf:"B"},{name:"DIC114",shelf:"B"},{name:"DIC31",shelf:"B"},{name:"DIC208",shelf:"B"},{name:"N-963",shelf:"B"},{name:"DIC223",shelf:"B"},{name:"伊太原",shelf:"B"},{name:"DIC443",shelf:"B"},{name:"DIC2242",shelf:"B"},{name:"DIC453",shelf:"B"},{name:"スーパーNGP",shelf:"B"},{name:"DIC2073",shelf:"B"},{name:"DIC234",shelf:"B"},{name:"DIC389",shelf:"B"},{name:"DIC376",shelf:"B"},{name:"DIC348",shelf:"B"},{name:"DIC25",shelf:"B"},{name:"DIC2051",shelf:"B"},{name:"スーパー銀",shelf:"B"},{name:"カルトン淡葱",shelf:"B"},{name:"FDMCコーン",shelf:"B"},
+      // C棚
+      {name:"フグのエサ ふぐ力",shelf:"C"},{name:"シュガーレディの梅酒",shelf:"C"},{name:"F218",shelf:"C"},{name:"カゴメトマトの津軽しぼり",shelf:"C"},{name:"DIC123",shelf:"C"},{name:"CF0829",shelf:"C"},{name:"DIC649",shelf:"C"},{name:"DIC286",shelf:"C"},{name:"DIC324+メジューム",shelf:"C"},{name:"DIC411",shelf:"C"},{name:"DIC124",shelf:"C"},{name:"DIC86",shelf:"C"},{name:"DIC38",shelf:"C"},{name:"DIC85",shelf:"C"},{name:"DIC2039",shelf:"C"},{name:"SMART VEGE バルサミコ酢",shelf:"C"},{name:"DIC200",shelf:"C"},{name:"ブイヨン・XO醤仕立て春巻",shelf:"C"},{name:"DIC76",shelf:"C"},{name:"DIC439",shelf:"C"},{name:"CF0225",shelf:"C"},{name:"DIC832",shelf:"C"},{name:"DIC136",shelf:"C"},{name:"DIC324",shelf:"C"},{name:"FLASH DRY UV Cure Type",shelf:"C"},{name:"トーヨールミナ TL オレンジ",shelf:"C"},{name:"トーヨールミナ TL レッド",shelf:"C"},{name:"DIC不変色 No.5草",shelf:"C"},{name:"DAI-SPARK 230赤K",shelf:"C"},{name:"ダイスパーク280 赤K",shelf:"C"},{name:"SMART VEGE 赤いトマト",shelf:"C"},{name:"DIC2606",shelf:"C"},{name:"SMARTVEGE F5-100 メジューム60",shelf:"C"},
+      // D棚
+      {name:"刺身用ぼたんえび いばてん",shelf:"D"},{name:"2020年度 SD&M スローガン",shelf:"D"},{name:"DC M FG58 原色藍",shelf:"D"},{name:"チョコブラウニーケーキ",shelf:"D"},{name:"MAR408黄",shelf:"D"},{name:"MVシール用 23赤又",shelf:"D"},{name:"ヨコミゾのえびしゅうまい",shelf:"D"},{name:"FD MC A28466 牛肉紅XH",shelf:"D"},{name:"FD MC A28464 肉じゃが茶XH",shelf:"D"},{name:"DIC25",shelf:"D"},{name:"DC M 405 透明黄",shelf:"D"},{name:"FD LED AD黄 R M",shelf:"D"},{name:"FD LED AD藍 R M",shelf:"D"},{name:"FD LED AD墨 R M",shelf:"D"},{name:"FD LED AD紅 R M",shelf:"D"},{name:"JC カルトン デリ男爵茶",shelf:"D"},{name:"JC カルトン DIC-C-17 ピンク",shelf:"D"},{name:"JC カルトン DIC F199 ニゼル",shelf:"D"},{name:"JC カルトン デリ肉じゃかエンジ",shelf:"D"},{name:"JC カルトン DIC-205黄",shelf:"D"},{name:"JC カルトン デリかぼちゃ橙",shelf:"D"},{name:"DIC317",shelf:"D"},{name:"JC カルトン DIC N-979茶",shelf:"D"},{name:"JC MP UV用 DIC305茶",shelf:"D"},{name:"DC HR 100 BH墨 J",shelf:"D"},{name:"FD LPC BIO藍 M",shelf:"D"},{name:"FD MP BIO紅M",shelf:"D"},{name:"DC HR 400 墨 N",shelf:"D"},{name:"FD LPC PR墨 CL",shelf:"D"},{name:"FD LPC BIO墨M",shelf:"D"},{name:"DIC435",shelf:"D"},{name:"FD A29179 男爵いも茶×H",shelf:"D"},{name:"DIC N-778",shelf:"D"},{name:"こだわりの品 粗挽品",shelf:"D"},{name:"FD A28863 デミグラス グリーンXH",shelf:"D"},{name:"黄(50)+鮮 メジューム(50)",shelf:"D"},{name:"DIC346(10)+メジューム(30)",shelf:"D"},{name:"UV パック OP ニス K LED",shelf:"D"},{name:"FD A09538 カニ玉 D-9 クリームXH",shelf:"D"},{name:"DIC310",shelf:"D"},{name:"特 UV L ハンバーグ 緑N",shelf:"D"},{name:"JC カルトンたいめいけん濃茶",shelf:"D"},{name:"DIC182",shelf:"D"},{name:"UV用 DIC834",shelf:"D"},{name:"ドライフルーツと果汁 Afternoon Tea",shelf:"D"},{name:"JC カルトンデリ男爵茶緑",shelf:"D"},{name:"FDMC A28468 コーン藍XH",shelf:"D"},{name:"FD LPC PR 墨CL",shelf:"D"},{name:"FD LPC PR 紅 CL",shelf:"D"},{name:"DC HR 400 紅N",shelf:"D"},{name:"FD LPC PR紅 CL XH",shelf:"D"},{name:"DC HR 500 紅N",shelf:"D"},{name:"JC カルトン PANTONE 872 ゴールド",shelf:"D"},{name:"DIC2590",shelf:"D"},{name:"DIC453",shelf:"D"},{name:"FD Oニュー墨 HF1 口",shelf:"D"},{name:"JC MP CG-C-250緑",shelf:"D"},{name:"スーパーNGP 紺 PPYG143",shelf:"D"},{name:"DIC572",shelf:"D"},{name:"DIC425",shelf:"D"},{name:"DIC235",shelf:"D"},{name:"JC MP PANTONE 356 C 緑",shelf:"D"},{name:"JC カルトン DICフランス伝統色 F-155 紫",shelf:"D"},{name:"DIC26",shelf:"D"},{name:"UV L 12品目 オレンジN",shelf:"D"},{name:"UV特練 DIC335 薄茶",shelf:"D"},{name:"ドリンクラベル用 OP ニス PPSA927",shelf:"D"},{name:"DIC2081",shelf:"D"},{name:"DIC2243",shelf:"D"},{name:"マット OP ニス PPYA851",shelf:"D"},{name:"UV L 12品目黄N",shelf:"D"},{name:"UV L ふんわり天 クリーム N",shelf:"D"},{name:"JC MP PANTONE 2622茶",shelf:"D"},{name:"UV L P-179C 金赤N",shelf:"D"},{name:"JC カルトン DIC-N-832草",shelf:"D"},{name:"UV L スマートベジ クリーム N",shelf:"D"},{name:"UV特練 DIC346 茶",shelf:"D"},{name:"UV特練 DIC334 セピア",shelf:"D"},{name:"UV L さくさくカレー赤 N",shelf:"D"},{name:"DIC199",shelf:"D"},{name:"UV特練 DIC273 小豆色N",shelf:"D"},{name:"UV用 DIC161",shelf:"D"},
+      // E棚
+      {name:"DIC651",shelf:"E"},{name:"検食",shelf:"E"},{name:"熟成ハンバーグ",shelf:"E"},{name:"あぶり焼き チキンガーリック風味",shelf:"E"},{name:"藍(A) メジューム40 藍40",shelf:"E"},{name:"紅(A) メジューム40 紅40",shelf:"E"},{name:"F Gloss 68 紫",shelf:"E"},{name:"カルトンでルフ GWニス",shelf:"E"},{name:"カルトンセルフ OPニス",shelf:"E"},{name:"A11239 TK エつまいも",shelf:"E"},{name:"TK ハイエコー OS 10 赤M",shelf:"E"},{name:"EG 江戸や緑",shelf:"E"},{name:"FG64 群青",shelf:"E"},{name:"P-茶",shelf:"E"},{name:"EG 国深チラシ赤",shelf:"E"},{name:"メジウム CGマゼンタ",shelf:"E"},{name:"DIC34-450 白-75 DIC328-300",shelf:"E"},{name:"UV カートン GE K墨 M",shelf:"E"},{name:"F Gloss 72 牡丹",shelf:"E"},{name:"かりっとジューシー フライパンで焼け 特茶",shelf:"E"},{name:"EG スーパーカトウ赤",shelf:"E"},{name:"TKV あおき月山紫 XH",shelf:"E"},{name:"PSC350 A",shelf:"E"},{name:"CF0054-15 メジウムー45 白-25",shelf:"E"},{name:"FG66 群青 N",shelf:"E"},{name:"家庭用ラジウム温泉",shelf:"E"},{name:"UV エース 蒼ビーフ濃茶",shelf:"E"},{name:"F/G 鈍藍 BX6ATC84",shelf:"E"},{name:"FG15 紅 N",shelf:"E"},{name:"EG ピース 紺",shelf:"E"},{name:"CF6610",shelf:"E"},{name:"DIC161",shelf:"E"},{name:"DIC133",shelf:"E"},{name:"TOYO KING mark V 紅L",shelf:"E"},{name:"FG42 赤黄",shelf:"E"},{name:"直巻 ちりめん羽沢菜 草",shelf:"E"},{name:"F Gloss 浅葱",shelf:"E"},{name:"FG53草",shelf:"E"},{name:"DIC318",shelf:"E"},{name:"DIC2-186",shelf:"E"},{name:"大龍 荘明義監修 サージャン麺",shelf:"E"},{name:"DIC2081",shelf:"E"},{name:"FG 耐性草",shelf:"E"},{name:"UV L さくさくカレー赤N",shelf:"E"},{name:"墨(50)+メジューム(50)",shelf:"E"},{name:"No.6 UV Lカートン OPニス GW1",shelf:"E"},{name:"UV L 47サフバター茶N",shelf:"E"},{name:"特練300 51草550 ホスタノール30",shelf:"E"},{name:"にらまんじゅう",shelf:"E"},{name:"FG57 浅葱藍",shelf:"E"},{name:"FG15 紅 N",shelf:"E"},{name:"スミ用 UV 161 J墨S",shelf:"E"},{name:"DIC2570",shelf:"E"},{name:"UV用 DIC782",shelf:"E"},{name:"FDカルトン X 38藍 M",shelf:"E"},{name:"DIC1",shelf:"E"},{name:"DIC172-40 メジューム-20 ホスタノールー3",shelf:"E"},{name:"TKV DIC 淡藍 XS-N",shelf:"E"},{name:"F-Gloss 65 群青",shelf:"E"},{name:"OMR114 橙",shelf:"E"},{name:"カラーガイド用 ピンク NO5A0460",shelf:"E"},{name:"ニューカンピオンマット墨",shelf:"E"},{name:"FN-104",shelf:"E"},{name:"OMR113赤",shelf:"E"},{name:"FGloss 53草",shelf:"E"},{name:"CF0777",shelf:"E"},{name:"FG54淡葱 N",shelf:"E"},{name:"D228系 No.18 上緑",shelf:"E"},{name:"不変色 No.8 藍",shelf:"E"},{name:"FG68 紫 N",shelf:"E"},{name:"UV 161 28V 紺藍 J",shelf:"E"},{name:"POP-K プロセス藍",shelf:"E"},{name:"パントン286",shelf:"E"},{name:"DIC891-60 57藍-10",shelf:"E"},{name:"FG18 赤N",shelf:"E"},{name:"GP70 紺藍",shelf:"E"},{name:"パントン 871C ゴールド",shelf:"E"},{name:"MK66 群青N",shelf:"E"},{name:"ふりかけ 納豆",shelf:"E"},{name:"UV L DIC26 ピンクN",shelf:"E"},{name:"海鮮かき揚げ",shelf:"E"},{name:"スーパーグロス OP ニス K",shelf:"E"},{name:"OMR103紅",shelf:"E"},{name:"FGloss 49 青黄",shelf:"E"},{name:"AJM グリーン",shelf:"E"},{name:"GP70 紺藍藍",shelf:"E"},{name:"MK68 紫",shelf:"E"},{name:"N UQS24 藍",shelf:"E"},{name:"UVエース スーパー全赤",shelf:"E"},{name:"FDカルトン X 浅葱 M",shelf:"E"},{name:"FDMC A28468コーン藍XH",shelf:"E"},{name:"UV L ふんわり天 クリーム N",shelf:"E"},{name:"JC カルトンF-155 紫",shelf:"E"},{name:"CF0011 ヘルベン入り",shelf:"E"},{name:"ベストチェアー No.3 シルバー",shelf:"E"},{name:"DIC201",shelf:"E"},{name:"UV L ニュー様 ピンク N",shelf:"E"},{name:"パントン294",shelf:"E"},{name:"DIC2497",shelf:"E"},{name:"UV L サクサクバター茶N",shelf:"E"},{name:"UVエース パウリ OP ニス ST",shelf:"E"},{name:"JC MP PANTONE 9541淡グリーン",shelf:"E"},{name:"JCMP UV用 DIC305茶",shelf:"E"},{name:"JC MP ピンクUV用",shelf:"E"},{name:"JCカルトン DIC435 濃紺",shelf:"E"},{name:"DIC-G37",shelf:"E"},{name:"DIC164",shelf:"E"},{name:"DIC492",shelf:"E"},{name:"ドリンクラベル用 OP ニス",shelf:"E"},{name:"JCカルトン DIC843若竹色",shelf:"E"},{name:"FD LED AD黄 R M",shelf:"E"},{name:"FD Oニュー耐性紅 H紅 口",shelf:"E"},{name:"FDカルトンX キノコ茶XH",shelf:"E"},{name:"FDMC A09538 カニ玉D-9 クリームXH",shelf:"E"},{name:"FD Dニュー 耐性全赤 HF1 口",shelf:"E"},{name:"FDMP 耐性黄 M",shelf:"E"},{name:"UV L スマートベジ クリームN",shelf:"E"},{name:"JC MP PANTONE 9360 淡紫",shelf:"E"},{name:"JC MP PANTONE 9300淡ピンク",shelf:"E"},{name:"JC MP サーマル用ピンク",shelf:"E"},
+      // F棚
+      {name:"FD LED AD 黄 R M",shelf:"F"},{name:"FD MP BIO 藍 M",shelf:"F"},{name:"GS UV L ハンバーグ グレー N",shelf:"F"},{name:"JC カルトン DIC235 金赤",shelf:"F"},{name:"UV D ゴールド 赤口",shelf:"F"},{name:"UV D ゴールド 青口",shelf:"F"},{name:"JC カルトン DIC-205 黄",shelf:"F"},{name:"JC カルトン DIC-N-832 草",shelf:"F"},{name:"DIC164",shelf:"F"},{name:"オニオンスープ",shelf:"F"},{name:"JC LED コート CG-N-725 赤",shelf:"F"},{name:"JC LED コート CG-N-890 ブルー",shelf:"F"},{name:"きつねうどん",shelf:"F"},{name:"FD MP 金赤 M",shelf:"F"},{name:"JC カルトン DIC848 緑",shelf:"F"},{name:"JC MP CG-C-267 群青",shelf:"F"},{name:"JC MP CG-F-119 オレンジ",shelf:"F"},{name:"JC MP CG-810 黄土",shelf:"F"},{name:"JC MP CG-F-111 赤",shelf:"F"},{name:"JC カルトン DIC304 茶",shelf:"F"},{name:"UVエース BM エクセル Z 961 墨",shelf:"F"},{name:"NO.2 UV コンテックス K",shelf:"F"},{name:"UVエース BM エクセル Z プロセス 紅",shelf:"F"},{name:"UVエース BM エクセル Z プロセス 黄",shelf:"F"},{name:"UVエース BM エクセル Z プロセス 藍",shelf:"F"},
+      // G棚
+      {name:"UVエース エクセル Z PANTONE P115-16C 特青",shelf:"G"},{name:"UVエース エクセル Z PANTONE P48-16C 特赤",shelf:"G"},{name:"JC LED 新宿カレー キーマカレー 金赤",shelf:"G"},{name:"JC LED 新宿カレー ポーク辛口 ピンク",shelf:"G"},{name:"JC LED 新宿カレー ビーフ 茶",shelf:"G"},{name:"JC LED 新宿カレー ポーク野菜 グリーン",shelf:"G"},{name:"JC LED 新宿カレー 黄",shelf:"G"},{name:"JC LED 新宿カレー ポーク中辛 ブルー",shelf:"G"},{name:"A09538 カニ玉D-9 クリームXH",shelf:"G"},{name:"FD MC CF マゼンタ XH",shelf:"G"},{name:"UV特練 DIC12 淡草",shelf:"G"},{name:"JC MP さつまいも 赤茶",shelf:"G"},{name:"JC MP さつまいも オレンジ",shelf:"G"},{name:"JC MP さつまいも 黄土",shelf:"G"},{name:"DIC330",shelf:"G"},{name:"JC MP CG-206 オレンジ",shelf:"G"},{name:"JC LED ニチレイの赤",shelf:"G"},{name:"GS UV L DIC156 金赤 N",shelf:"G"},{name:"JC カルトン たいめいけん 2024 茶",shelf:"G"},{name:"JC カルトン 春巻 エンジ",shelf:"G"},{name:"JC カルトン DIC232 エンジ",shelf:"G"},{name:"FD MP 白 M",shelf:"G"},{name:"JC LED コート CG-564 赤",shelf:"G"},{name:"JC LED コート CG-61 グリーン",shelf:"G"},{name:"JC LED コート CG-71 淡紫",shelf:"G"},{name:"JC LED コート CG-124 オレンジ",shelf:"G"},{name:"NO.5 UV Lカートン J メジウム GW",shelf:"G"},{name:"DC Fグロス HR カラーガイド用 グリーン J N",shelf:"G"},{name:"DC M 405 透明黄",shelf:"G"},{name:"DC MAS 紅 N",shelf:"G"},{name:"DC MAS 金赤 N",shelf:"G"},{name:"MAR グリーン",shelf:"G"},{name:"MAR FG58 原色藍",shelf:"G"},{name:"UV MP 301 橙 N",shelf:"G"},{name:"UV特練 FG51 草 N",shelf:"G"},{name:"FD MC A28464 肉じゃが 朱 XH",shelf:"G"},{name:"FD MP 紅 M",shelf:"G"},{name:"MAR 203 赤",shelf:"G"},{name:"DC M 301 橙",shelf:"G"},{name:"FD MC A28466 牛肉 紅 XH",shelf:"G"}
+    ];
+
+    // ============================================
+    // 状態管理
+    // ============================================
+    let inkData = localInkData;
+    let processedData = [];
+    let selectedInks = new Set();
+    let currentTab = 'list';
+    let openCategories = {};
+    let historyData = JSON.parse(localStorage.getItem('inkHistory') || '[]');
+
+    // ============================================
+    // 色判定
+    // ============================================
+    function detectColor(name) {
+      if (/赤|レッド|red|紅|えんじ|エンジ|朱|マゼンタ|magenta|牡丹/i.test(name)) return { color: '#e53935', category: '🔴 赤系', order: 1 };
+      if (/ピンク|pink|桃|さくら/i.test(name)) return { color: '#ec407a', category: '🩷 ピンク系', order: 2 };
+      if (/オレンジ|橙|だいだい|orange/i.test(name)) return { color: '#ff9800', category: '🟠 オレンジ系', order: 3 };
+      if (/黄|イエロー|yellow|金|ゴールド|gold/i.test(name)) return { color: '#fdd835', category: '🟡 黄系', order: 4 };
+      if (/緑|グリーン|green|草|若竹/i.test(name)) return { color: '#43a047', category: '🟢 緑系', order: 5 };
+      if (/青|ブルー|blue|藍|紺|群青|蒼|コバルト/i.test(name)) return { color: '#1e88e5', category: '🔵 青系', order: 6 };
+      if (/紫|パープル|purple|バイオレット|violet|むらさき|ムラサキ/i.test(name)) return { color: '#8e24aa', category: '🟣 紫系', order: 7 };
+      if (/茶|ブラウン|brown|セピア|小豆|チョコ|デミグラス/i.test(name)) return { color: '#6d4c41', category: '🟤 茶系', order: 8 };
+      if (/黒|墨|ブラック|black|漆黒/i.test(name)) return { color: '#212121', category: '⚫ 黒系', order: 9 };
+      if (/白|ホワイト|white/i.test(name)) return { color: '#e0e0e0', category: '⚪ 白系', order: 10 };
+      if (/グレー|灰|グレイ|gray|grey|シルバー|silver|銀/i.test(name)) return { color: '#9e9e9e', category: '🩶 グレー系', order: 11 };
+      if (/クリーム|ベージュ|beige|cream|淡/i.test(name)) return { color: '#ffe0b2', category: '🟡 ベージュ系', order: 12 };
+      if (/浅葱|あさぎ/i.test(name)) return { color: '#00acc1', category: '🔵 青系', order: 6 };
+      
+      const dicMatch = name.match(/DIC\s*(\d+)/i);
+      if (dicMatch) {
+        const num = parseInt(dicMatch[1]);
+        if (num >= 1 && num <= 100) return { color: '#e53935', category: '🔴 赤系', order: 1 };
+        if (num >= 101 && num <= 200) return { color: '#ff9800', category: '🟠 オレンジ系', order: 3 };
+        if (num >= 201 && num <= 300) return { color: '#fdd835', category: '🟡 黄系', order: 4 };
+        if (num >= 301 && num <= 400) return { color: '#43a047', category: '🟢 緑系', order: 5 };
+        if (num >= 401 && num <= 500) return { color: '#1e88e5', category: '🔵 青系', order: 6 };
+        if (num >= 501 && num <= 600) return { color: '#8e24aa', category: '🟣 紫系', order: 7 };
+        if (num >= 601 && num <= 700) return { color: '#6d4c41', category: '🟤 茶系', order: 8 };
+        if (num >= 2000 && num <= 2300) return { color: '#43a047', category: '🟢 緑系', order: 5 };
+        if (num >= 2400 && num <= 2700) return { color: '#1e88e5', category: '🔵 青系', order: 6 };
+      }
+      
+      return { color: '#bdbdbd', category: '⬜ その他', order: 99 };
+    }
+
+    // ============================================
+    // 初期化
+    // ============================================
+    function init() {
+      processedData = inkData.map((item, idx) => ({ 
+        id: idx,
+        name: item.name, 
+        shelf: item.shelf,
+        ...detectColor(item.name) 
+      })).sort((a, b) => a.order - b.order || a.name.localeCompare(b.name, 'ja'));
+      
+      render(processedData);
+    }
+
+    // ============================================
+    // タブ切り替え
+    // ============================================
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelector(`.tab:nth-child(${tab === 'list' ? 1 : 2})`).classList.add('active');
+      
+      if (tab === 'list') {
+        render(processedData);
+      } else {
+        renderHistory();
+      }
+    }
+
+    // ============================================
+    // 一覧レンダリング
+    // ============================================
+    function render(data) {
+      const content = document.getElementById('content');
+      document.getElementById('count').textContent = `(${data.length}件)`;
+      
+      if (data.length === 0) {
+        content.innerHTML = '<div class="empty">該当するインキがありません</div>';
+        return;
+      }
+
+      const groups = {};
+      data.forEach(item => {
+        if (!groups[item.category]) groups[item.category] = { items: [], color: item.color, order: item.order };
+        groups[item.category].items.push(item);
+      });
+
+      const sortedGroups = Object.entries(groups).sort((a, b) => a[1].order - b[1].order);
+
+      content.innerHTML = sortedGroups.map(([category, group]) => `
+        <div class="category-header" onclick="toggleCategory('cat-${group.order}')">
+          <div class="category-left">
+            <div class="category-dot" style="background:${group.color}"></div>
+            <span class="category-name">${category}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="category-count">${group.items.length}</span>
+            <span class="arrow ${openCategories['cat-'+group.order] ? 'open' : ''}" id="arrow-cat-${group.order}">▶</span>
+          </div>
+        </div>
+        <div class="item-list ${openCategories['cat-'+group.order] ? 'open' : ''}" id="list-cat-${group.order}">
+          ${group.items.map(item => `
+            <div class="item ${selectedInks.has(item.id) ? 'selected' : ''}" onclick="toggleSelect(${item.id})">
+              <div class="checkbox"></div>
+              <div class="color-dot" style="background:${item.color};${item.color === '#e0e0e0' ? 'border:1px solid #ccc;' : ''}"></div>
+              <span class="item-name">${item.name}</span>
+              <span class="shelf-tag shelf-${item.shelf}">${item.shelf}棚</span>
+            </div>
+          `).join('')}
+        </div>
+      `).join('');
+      
+      updateRegisterBar();
+    }
+
+    // ============================================
+    // 履歴レンダリング
+    // ============================================
+    function renderHistory() {
+      const content = document.getElementById('content');
+      document.getElementById('count').textContent = `(${historyData.length}件)`;
+      
+      if (historyData.length === 0) {
+        content.innerHTML = '<div class="empty">使用履歴がありません</div>';
+        return;
+      }
+      
+      // 新しい順に表示
+      const sorted = [...historyData].reverse();
+      
+      content.innerHTML = sorted.map(h => `
+        <div class="history-item">
+          <div class="history-date">${h.date}</div>
+          <div class="history-product">${h.product}</div>
+          <div class="history-inks">
+            ${h.inks.map(ink => `<span class="history-ink">${ink.name} (${ink.shelf}棚)</span>`).join('')}
+          </div>
+        </div>
+      `).join('');
+      
+      document.getElementById('registerBar').classList.remove('show');
+    }
+
+    // ============================================
+    // カテゴリ開閉
+    // ============================================
+    function toggleCategory(catId) {
+      const list = document.getElementById('list-' + catId);
+      const arrow = document.getElementById('arrow-' + catId);
+      
+      if (list.classList.contains('open')) {
+        list.classList.remove('open');
+        arrow.classList.remove('open');
+        openCategories[catId] = false;
+      } else {
+        list.classList.add('open');
+        arrow.classList.add('open');
+        openCategories[catId] = true;
+      }
+    }
+
+    // ============================================
+    // 選択トグル
+    // ============================================
+    function toggleSelect(id) {
+      if (selectedInks.has(id)) {
+        selectedInks.delete(id);
+      } else {
+        selectedInks.add(id);
+      }
+      
+      // 再描画
+      const item = document.querySelector(`.item[onclick="toggleSelect(${id})"]`);
+      if (item) {
+        item.classList.toggle('selected');
+      }
+      
+      updateRegisterBar();
+    }
+
+    // ============================================
+    // 登録バー更新
+    // ============================================
+    function updateRegisterBar() {
+      const bar = document.getElementById('registerBar');
+      const count = document.getElementById('selectedCount');
+      
+      if (selectedInks.size > 0 && currentTab === 'list') {
+        bar.classList.add('show');
+        count.textContent = `${selectedInks.size}件選択中`;
+      } else {
+        bar.classList.remove('show');
+      }
+    }
+
+    // ============================================
+    // 履歴登録
+    // ============================================
+    async function registerHistory() {
+      const productName = document.getElementById('productName').value.trim();
+      if (!productName) {
+        showToast('製品名を入力してください');
+        return;
+      }
+      
+      const inks = Array.from(selectedInks).map(id => {
+        const ink = processedData.find(i => i.id === id);
+        return { name: ink.name, shelf: ink.shelf };
+      });
+      
+      const now = new Date();
+      const dateStr = now.toLocaleString('ja-JP');
+      
+      const record = {
+        date: dateStr,
+        product: productName,
+        inks: inks
+      };
+      
+      // ローカルに保存
+      historyData.push(record);
+      localStorage.setItem('inkHistory', JSON.stringify(historyData));
+      
+      // GAS連携
+      if (GAS_URL) {
+        try {
+          await fetch(GAS_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'addHistory',
+              product: productName,
+              inks: inks
+            })
+          });
+        } catch (e) {
+          console.log('GAS送信エラー:', e);
+        }
+      }
+      
+      // リセット
+      selectedInks.clear();
+      document.getElementById('productName').value = '';
+      render(processedData);
+      
+      showToast(`${inks.length}件の使用履歴を登録しました`);
+    }
+
+    // ============================================
+    // 検索
+    // ============================================
+    document.getElementById('search').addEventListener('input', function(e) {
+      if (currentTab !== 'list') return;
+      
+      const q = e.target.value.toLowerCase();
+      if (!q.trim()) {
+        render(processedData);
+      } else {
+        const filtered = processedData.filter(item => 
+          item.name.toLowerCase().includes(q) || 
+          item.category.includes(e.target.value) ||
+          item.shelf.toLowerCase().includes(q) ||
+          (item.shelf + '棚').includes(e.target.value)
+        );
+        filtered.forEach(item => openCategories['cat-' + item.order] = true);
+        render(filtered);
+      }
+    });
+
+    // ============================================
+    // 設定モーダル
+    // ============================================
+    function openSettings() {
+      document.getElementById('gasUrl').value = GAS_URL;
+      document.getElementById('settingsModal').classList.add('show');
+    }
+    
+    function closeSettings() {
+      document.getElementById('settingsModal').classList.remove('show');
+    }
+    
+    function saveSettings() {
+      GAS_URL = document.getElementById('gasUrl').value.trim();
+      localStorage.setItem('gasUrl', GAS_URL);
+      closeSettings();
+      showToast('設定を保存しました');
+    }
+
+    // ============================================
+    // トースト
+    // ============================================
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    // ============================================
+    // 起動
+    // ============================================
+    init();
+  </script>
+</body>
+</html>
